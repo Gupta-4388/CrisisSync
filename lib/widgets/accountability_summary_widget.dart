@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
+import '../mock_data.dart';
 
 class AccountabilitySummaryWidget extends StatelessWidget {
   final String incidentId;
@@ -9,7 +10,11 @@ class AccountabilitySummaryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final counts = appState.guestCounts;
+    Map<dynamic, dynamic> counts = appState.guestCounts;
+    if (incidentId.startsWith('mock_')) {
+      MockDataStore.generate(incidentId);
+      counts = MockDataStore.counts;
+    }
     
     int safe = counts['safe'] ?? 0;
     int unaccounted = counts['unaccounted'] ?? 0;
@@ -40,7 +45,14 @@ class AccountabilitySummaryWidget extends StatelessWidget {
           children: [
             Text(label, style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
-            Text(value.toString(), style: TextStyle(color: color[800], fontWeight: FontWeight.bold, fontSize: 36)),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: value.toDouble()),
+              duration: const Duration(seconds: 1),
+              curve: Curves.easeOutCubic,
+              builder: (context, val, child) {
+                return Text(val.toInt().toString(), style: TextStyle(color: color[800], fontWeight: FontWeight.bold, fontSize: 36));
+              },
+            ),
           ],
         ),
       ),

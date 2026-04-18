@@ -63,7 +63,7 @@ class AppState extends ChangeNotifier {
   }
 
   void _listenToIncidentDetails(String id) {
-    _rtdb.ref('incidents/\$id').onValue.listen((event) {
+    _rtdb.ref('incidents/$id').onValue.listen((event) {
       if (event.snapshot.value != null) {
         currentIncident = event.snapshot.value as Map<dynamic, dynamic>?;
         notifyListeners();
@@ -72,7 +72,7 @@ class AppState extends ChangeNotifier {
   }
 
   void _listenToMuster(String id) {
-    _rtdb.ref('muster/\$id/rooms').onValue.listen((event) {
+    _rtdb.ref('muster/$id/rooms').onValue.listen((event) {
       if (event.snapshot.value != null) {
         final data = event.snapshot.value as Map<dynamic, dynamic>;
         int safe = 0, unacc = 0, rescue = 0;

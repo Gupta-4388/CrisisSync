@@ -18,10 +18,15 @@ class _StaffAccountabilityScreenState extends State<StaffAccountabilityScreen> {
   int _selectedFloor = 0;
 
   void _updateStatus(String roomNumber, String status) async {
-    await FirebaseDatabase.instance.ref('muster/\${widget.incidentId}/rooms/\$roomNumber').update({
-      'status': status,
-      'updatedAt': DateTime.now().toIso8601String(),
-    });
+    if (widget.incidentId.isEmpty) return;
+    try {
+      await FirebaseDatabase.instance.ref('muster/${widget.incidentId}/rooms/$roomNumber').update({
+        'status': status,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      print('RTDB Staff error: $e');
+    }
   }
 
   List<Map<dynamic, dynamic>> _getFilteredAndSortedGuests(List<Map<dynamic, dynamic>> allGuests) {
@@ -59,11 +64,24 @@ class _StaffAccountabilityScreenState extends State<StaffAccountabilityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.incidentId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Accountability'),
+          backgroundColor: const Color(0xFFF57F17),
+          leading: Navigator.canPop(context) ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)) : null,
+        ),
+        body: const Center(
+          child: Text("No incident selected", style: TextStyle(fontSize: 20, color: Colors.grey)),
+        ),
+      );
+    }
+
     final appState = Provider.of<AppState>(context);
     final allGuests = appState.allGuests;
     int safeCount = appState.guestCounts['safe'] ?? 0;
 
-    String title = _selectedFloor == 0 ? 'All Floors' : 'Floor \$_selectedFloor';
+    String title = _selectedFloor == 0 ? 'All Floors' : 'Floor $_selectedFloor';
     
     bool isFloorCleared = false;
     if (_selectedFloor != 0) {
@@ -75,7 +93,7 @@ class _StaffAccountabilityScreenState extends State<StaffAccountabilityScreen> {
       appBar: AppBar(
         title: Text('$title Accountability — $safeCount/${allGuests.length} Safe'),
         backgroundColor: const Color(0xFFF57F17),
-        automaticallyImplyLeading: false,
+        leading: Navigator.canPop(context) ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)) : null,
       ),
       body: Column(
         children: [
@@ -106,7 +124,7 @@ class _StaffAccountabilityScreenState extends State<StaffAccountabilityScreen> {
       floatingActionButton: _selectedFloor != 0
           ? FloatingActionButton.extended(
               onPressed: isFloorCleared ? () async {
-                await _firebaseService.logTimelineEvent(widget.incidentId, "Floor \$_selectedFloor cleared by Staff (\$safeCount safe)");
+                await _firebaseService.logTimelineEvent(widget.incidentId, "Floor $_selectedFloor cleared by Staff ($safeCount safe)");
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Floor Cleared! Command Notified.')));
               } : null,
               backgroundColor: isFloorCleared ? Colors.green : Colors.grey,
@@ -150,7 +168,7 @@ class _StaffAccountabilityScreenState extends State<StaffAccountabilityScreen> {
             if (hasNotes)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('Notes: \$notes', style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+                child: Text('Notes: $notes', style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
               ),
             const SizedBox(height: 15),
             Row(

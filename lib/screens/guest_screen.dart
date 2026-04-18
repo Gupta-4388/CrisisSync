@@ -12,7 +12,7 @@ class GuestScreen extends StatefulWidget {
   State<GuestScreen> createState() => _GuestScreenState();
 }
 
-class _GuestScreenState extends State<GuestScreen> {
+class _GuestScreenState extends State<GuestScreen> with SingleTickerProviderStateMixin {
   final FirebaseService firebaseService = FirebaseService();
   final GeminiService geminiService = GeminiService();
   final FlutterTts flutterTts = FlutterTts();
@@ -20,22 +20,23 @@ class _GuestScreenState extends State<GuestScreen> {
   String _selectedLanguage = 'English';
   final Map<String, String> _languages = {
     'English': 'en-US',
-    'Spanish': 'es-ES',
-    'French': 'fr-FR',
-    'German': 'de-DE',
-    'Mandarin': 'zh-CN',
     'Hindi': 'hi-IN',
-    'Japanese': 'ja-JP',
+    'Telugu': 'te-IN',
   };
 
   String _lastOriginalMessage = "";
   String _translatedMessage = "";
   bool _isTranslating = false;
 
+  late AnimationController _flashController;
+  late Animation<Color?> _flashAnimation;
+
   @override
   void initState() {
     super.initState();
     _initTts();
+    _flashController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+    _flashAnimation = ColorTween(begin: Colors.red[900], end: Colors.red[500]).animate(_flashController);
   }
 
   Future<void> _initTts() async {
@@ -67,6 +68,8 @@ class _GuestScreenState extends State<GuestScreen> {
       _translatedMessage = newTranslated;
       _isTranslating = false;
     });
+
+    _speak(_selectedLanguage == 'English' ? "Attention. $newTranslated" : newTranslated);
   }
 
   void _onLanguageChanged(String? newValue) {
@@ -81,6 +84,7 @@ class _GuestScreenState extends State<GuestScreen> {
   @override
   void dispose() {
     flutterTts.stop();
+    _flashController.dispose();
     super.dispose();
   }
 
@@ -172,49 +176,52 @@ class _GuestScreenState extends State<GuestScreen> {
             ),
           ),
           if (hasAlert)
-            Container(
-              color: Colors.red[900],
-              width: double.infinity,
-              height: double.infinity,
-              padding: const EdgeInsets.all(32),
-              child: SafeArea(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, size: 100, color: Colors.white),
-                    const SizedBox(height: 24),
-                    Text(
-                      _selectedLanguage == 'English' ? 'EMERGENCY ALERT' : '⚠️ ALERT', 
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      width: double.infinity,
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                      child: _isTranslating 
-                        ? const Center(child: CircularProgressIndicator()) 
-                        : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _translatedMessage.isNotEmpty ? _translatedMessage : (guestAlert['message'] ?? 'Please evacuate.'),
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, height: 1.5),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                onPressed: () => _speak(_translatedMessage.isNotEmpty ? _translatedMessage : guestAlert['message']),
-                                icon: const Icon(Icons.volume_up, size: 32),
-                                label: const Text('Play Audio', style: TextStyle(fontSize: 20)),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            AnimatedBuilder(
+              animation: _flashAnimation,
+              builder: (context, child) => Container(
+                color: _flashAnimation.value,
+                width: double.infinity,
+                height: double.infinity,
+                padding: const EdgeInsets.all(32),
+                child: SafeArea(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, size: 100, color: Colors.white),
+                      const SizedBox(height: 24),
+                      Text(
+                        _selectedLanguage == 'English' ? 'EMERGENCY ALERT' : '⚠️ ALERT', 
+                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        width: double.infinity,
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                        child: _isTranslating 
+                          ? const Center(child: CircularProgressIndicator()) 
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _translatedMessage.isNotEmpty ? _translatedMessage : (guestAlert['message'] ?? 'Please evacuate.'),
+                                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, height: 1.5),
+                                  textAlign: TextAlign.center,
                                 ),
-                              )
-                            ],
-                          ),
-                    ),
-                  ],
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  onPressed: () => _speak(_translatedMessage.isNotEmpty ? _translatedMessage : guestAlert['message']),
+                                  icon: const Icon(Icons.volume_up, size: 32),
+                                  label: const Text('Play Audio', style: TextStyle(fontSize: 20)),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  ),
+                                )
+                              ],
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

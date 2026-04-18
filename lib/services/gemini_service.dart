@@ -10,7 +10,7 @@ RESPOND ONLY IN VALID JSON. No preamble, no explanation, no markdown code blocks
 Required JSON format:
 {
   "incident_detected": true or false,
-  "incident_type": "fire" | "flood" | "medical_mass" | "security_threat" | "structural" | "none",
+  "incident_type": "fire" | "security" | "medical" | "none",
   "severity": 1 to 5,
   "affected_floors": [list of integers or empty array],
   "confidence": float between 0.0 and 1.0,
@@ -105,12 +105,12 @@ class GeminiService {
 
     String contextStr = """
 INCIDENT CONTEXT:
-Type: \${incident['incident_type']}
-Severity: \${incident['severity']}/5
-Affected Floors: \${(incident['affected_floors'] as List<dynamic>? ?? []).join(', ')}
-Immediate Action: \${incident['immediate_action']}
-Venue: \$venueName
-Unaccounted guests: \$unaccountedGuests
+Type: ${incident['incident_type']}
+Severity: ${incident['severity']}/5
+Affected Floors: ${(incident['affected_floors'] as List<dynamic>? ?? []).join(', ')}
+Immediate Action: ${incident['immediate_action']}
+Venue: $venueName
+Unaccounted guests: $unaccountedGuests
 Assembly Point: Main car park, South entrance
 Emergency stairwells: A (East wing) and B (West wing)
 """;
@@ -143,10 +143,10 @@ Emergency stairwells: A (East wing) and B (West wing)
       return {
         "guest": results[0].text?.trim() ?? "Emergency. Follow staff instructions immediately.",
         "staff": results[1].text?.trim() ?? "Emergency declared. Evacuate your sector.",
-        "responder": results[2].text?.trim() ?? "Emergency reported at \$venueName. Proceed with caution.",
+        "responder": results[2].text?.trim() ?? "Emergency reported at $venueName. Proceed with caution.",
       };
     } catch (e) {
-      print("Gemini API Error (Role Instructions): \$e");
+      print("Gemini API Error (Role Instructions): $e");
       return {
         "guest": "Emergency. Please evacuate immediately.",
         "staff": "Emergency. Follow standard evacuation protocols.",
@@ -166,7 +166,7 @@ Return ONLY a JSON array in this format:
 [{"roomNumber": "401", "priority": "CRITICAL", "reason": "Elderly guest, Floor 4, mobility aid noted"}]
 Priority levels: CRITICAL | HIGH | MEDIUM
 Return maximum 10 entries.
-\${jsonEncode(guestList)}
+${jsonEncode(guestList)}
 """;
 
     try {
@@ -182,7 +182,7 @@ Return maximum 10 entries.
       final list = jsonDecode(responseText) as List<dynamic>;
       return list.map((e) => e as Map<String, dynamic>).toList();
     } catch (e) {
-      print("Gemini API Error (Priority Rescue): \$e");
+      print("Gemini API Error (Priority Rescue): $e");
       return [];
     }
   }
@@ -258,7 +258,10 @@ Provide a clear, professional, concise script (under 50 words) to read to the em
       return {
         "incident_detected": false,
         "incident_type": "none",
-        "confidence": 0.0
+        "severity": 1,
+        "affected_floors": [],
+        "confidence": 0.0,
+        "immediate_action": "No immediate action required"
       };
     }
 
@@ -266,7 +269,7 @@ Provide a clear, professional, concise script (under 50 words) to read to the em
 SENSOR READINGS:
 - Temperature: ${sensorData['temperature'] ?? 'N/A'}°C
 - Smoke Level: ${sensorData['smokeLevel'] ?? 'N/A'}%
-- Motion Count: ${sensorData['motionCount'] ?? 0}
+- Motion Alerts: ${sensorData['motionAlerts'] ?? sensorData['motionCount'] ?? 0}
 ''';
 
     try {
@@ -288,7 +291,10 @@ SENSOR READINGS:
       return {
         "incident_detected": false,
         "incident_type": "none",
-        "confidence": 0.0
+        "severity": 1,
+        "affected_floors": [],
+        "confidence": 0.0,
+        "immediate_action": "No immediate action required"
       };
     }
   }

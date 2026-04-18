@@ -15,8 +15,15 @@ class StaffScreen extends StatelessWidget {
     final isConnected = appState.isConnected;
     final staffAlert = appState.staffAlert;
     final activeIncidentId = appState.activeIncidentId;
+    final currentIncident = appState.currentIncident;
 
     bool hasAlert = staffAlert != null && staffAlert['incidentId'] == activeIncidentId && activeIncidentId != null;
+
+    int severity = currentIncident?['severity'] ?? 1;
+    Color severityColor = Colors.red;
+    if (severity <= 2) severityColor = Colors.amber;
+    else if (severity == 3) severityColor = Colors.deepOrange;
+    else severityColor = Colors.red[900]!;
 
     return Scaffold(
       appBar: AppBar(
@@ -45,7 +52,7 @@ class StaffScreen extends StatelessWidget {
               },
               child: Container(
                 width: double.infinity,
-                color: Colors.red,
+                color: severityColor,
                 padding: const EdgeInsets.all(16),
                 child: const Text('ACTIVE INCIDENT — TAP FOR TASKS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
               ),

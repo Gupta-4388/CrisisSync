@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import '../mock_data.dart';
 
 class FloorMapWidget extends StatefulWidget {
   final String incidentId;
@@ -17,13 +18,23 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
   @override
   void initState() {
     super.initState();
-    _rtdb.ref('muster/\${widget.incidentId}/rooms').onValue.listen((event) {
-      if (event.snapshot.value != null && mounted) {
-        setState(() {
-          _rooms = event.snapshot.value as Map<dynamic, dynamic>;
-        });
-      }
-    });
+    if (widget.incidentId.isEmpty) return;
+    if (widget.incidentId.startsWith('mock_')) {
+      MockDataStore.generate(widget.incidentId);
+      if (mounted) setState(() => _rooms = MockDataStore.rooms);
+      return;
+    }
+    try {
+      _rtdb.ref('muster/${widget.incidentId}/rooms').onValue.listen((event) {
+        if (event.snapshot.value != null && mounted) {
+          setState(() {
+            _rooms = event.snapshot.value as Map<dynamic, dynamic>;
+          });
+        }
+      });
+    } catch (e) {
+      print('RTDB Staff listener error: $e');
+    }
   }
 
   Color _getRoomColor(String roomNumber) {
@@ -63,15 +74,37 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
     );
   }
 
+  List<int> _getActiveFloors() {
+    if (_rooms.isEmpty) return [3, 4, 5];
+    final floors = _rooms.values.map((r) => r['floor'] as int).toSet().toList();
+    floors.sort();
+    return floors.isNotEmpty ? floors : [3, 4, 5];
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.incidentId.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('Unable to load floor map\nNo incident selected', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 16)),
+        ),
+      );
+    }
+
+    final floorList = _getActiveFloors();
+    if (!floorList.contains(_selectedFloor)) {
+      _selectedFloor = floorList.first;
+    }
+
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildTab(3), _buildTab(4), _buildTab(5)
-          ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: floorList.map((f) => _buildTab(f)).toList(),
+          ),
         ),
         const SizedBox(height: 20),
         Container(
@@ -102,7 +135,7 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: ChoiceChip(
-        label: Text('Floor \$floorValue'),
+        label: Text('Floor $floorValue'),
         selected: isSelected,
         onSelected: (bool selected) {
           if (selected) setState(() => _selectedFloor = floorValue);

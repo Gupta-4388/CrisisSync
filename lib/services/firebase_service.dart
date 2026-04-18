@@ -160,6 +160,17 @@ class FirebaseService {
     });
   }
 
+  Stream<List<Map<dynamic, dynamic>>> streamResolvedIncidentsRTDB() {
+    return _rtdb.ref('incidents').orderByChild('status').equalTo('resolved').onValue.map((event) {
+      if (event.snapshot.value == null) return [];
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      return data.entries.map((e) => {
+        ...?e.value as Map<dynamic, dynamic>?,
+        'id': e.key,
+      }).toList()..sort((a, b) => (b['detectedAt'] ?? 0).compareTo(a['detectedAt'] ?? 0));
+    });
+  }
+
   Future<void> seedGuestData(String incidentId) async {
     List<Map<String, dynamic>> guests = [
       {"roomNumber":"301","guestName":"Sharma, R.","floor":3,"status":"unaccounted","notes":""},

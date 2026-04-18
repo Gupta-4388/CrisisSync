@@ -21,8 +21,9 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
   bool _isAnalyzing = false;
   Map<String, dynamic>? _analysisResult;
   bool _isDemoRunning = false;
+  String _demoStep = '';
 
-  void _analyzeData() async {
+  Future<void> _analyzeData() async {
     setState(() => _isAnalyzing = true);
     
     final data = {
@@ -68,40 +69,57 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
   }
 
   Future<void> _runDemoSequence() async {
-    setState(() => _isDemoRunning = true);
-
-    // FIX: Using specific ref path 'app_state' and empty maps instead of null
-    await FirebaseDatabase.instance.ref('app_state').update({
-      'active_incident': {},
-      'alerts': {},
-      'muster': {},
-      'incidents': {} 
+    setState(() {
+      _isDemoRunning = true;
+      _demoStep = 'Step 1: Admin triggers DEMO MODE. Resetting database...';
     });
+    print(_demoStep);
+
+    await FirebaseDatabase.instance.ref('active_incident').remove();
+    await FirebaseDatabase.instance.ref('alerts').remove();
+    await FirebaseDatabase.instance.ref('muster').remove();
+    await FirebaseDatabase.instance.ref('incidents').remove();
     
     await Future.delayed(const Duration(seconds: 2));
+
     setState(() {
+      _demoStep = 'Step 2: Simulating high fire risk (Temp 82°C, Smoke 68%)...';
       _temperature = 82.0;
       _smokeLevel = 68.0;
       _motionEvents = 9.0;
     });
+    print(_demoStep);
 
     await Future.delayed(const Duration(seconds: 2));
-    _analyzeData();
 
-    while (_isAnalyzing) {
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
+    setState(() {
+      _demoStep = 'Step 3: Initializing AI incident analysis...';
+    });
+    print(_demoStep);
+
+    await _analyzeData();
+
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (_analysisResult != null) {
+      setState(() {
+        _demoStep = 'Step 4: AI confirmed incident. Generating Role Instructions...';
+      });
+      print(_demoStep);
+
       await _triggerFullIncidentFlow();
       
+      setState(() {
+        _demoStep = 'Step 5: Alerts active on all UI modules! Demo Complete.';
+      });
+      print(_demoStep);
+
       await Future.delayed(const Duration(seconds: 2));
       
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All 3 roles alerted via Cloud Functions — 4.2 seconds elapsed'), duration: Duration(seconds: 4))
+          const SnackBar(content: Text('All 3 roles alerting in real-time.'), duration: Duration(seconds: 4))
         );
       }
     }
@@ -109,13 +127,10 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
   }
 
   Future<void> _resetDemo() async {
-    // FIX: Using specific ref path 'app_state' and empty maps instead of null
-    await FirebaseDatabase.instance.ref('app_state').update({
-      'active_incident': {},
-      'alerts': {},
-      'muster': {},
-      'incidents': {} 
-    });
+    await FirebaseDatabase.instance.ref('active_incident').remove();
+    await FirebaseDatabase.instance.ref('alerts').remove();
+    await FirebaseDatabase.instance.ref('muster').remove();
+    await FirebaseDatabase.instance.ref('incidents').remove();
     setState(() {
       _temperature = 22.0;
       _smokeLevel = 5.0;
@@ -140,13 +155,15 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
         ],
       ),
       body: _isDemoRunning 
-        ? const Center(
+        ? Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 24),
-                Text('Executing Automated Demo Chain...', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
+                const CircularProgressIndicator(),
+                const SizedBox(height: 24),
+                const Text('Executing Automated Demo Chain...', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Text(_demoStep, style: const TextStyle(fontSize: 18, color: Colors.blueAccent)),
               ],
             )
           )
