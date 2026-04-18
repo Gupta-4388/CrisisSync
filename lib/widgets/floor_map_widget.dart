@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../mock_data.dart';
+import '../services/firebase_service.dart';
 
 class FloorMapWidget extends StatefulWidget {
   final String incidentId;
@@ -12,7 +13,7 @@ class FloorMapWidget extends StatefulWidget {
 
 class _FloorMapWidgetState extends State<FloorMapWidget> {
   final FirebaseDatabase _rtdb = FirebaseDatabase.instance;
-  Map<dynamic, dynamic> _rooms = {};
+  Map<dynamic, dynamic> _fallbackRooms = {};
   int _selectedFloor = 3;
 
   @override
@@ -21,14 +22,14 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
     if (widget.incidentId.isEmpty) return;
     if (widget.incidentId.startsWith('mock_')) {
       MockDataStore.generate(widget.incidentId);
-      if (mounted) setState(() => _rooms = MockDataStore.rooms);
+      if (mounted) setState(() => _fallbackRooms = MockDataStore.rooms);
       return;
     }
     try {
       _rtdb.ref('muster/${widget.incidentId}/rooms').onValue.listen((event) {
         if (event.snapshot.value != null && mounted) {
           setState(() {
-            _rooms = event.snapshot.value as Map<dynamic, dynamic>;
+            _fallbackRooms = event.snapshot.value as Map<dynamic, dynamic>;
           });
         }
       });
@@ -37,9 +38,9 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
     }
   }
 
-  Color _getRoomColor(String roomNumber) {
-    if (_rooms.containsKey(roomNumber)) {
-      final status = _rooms[roomNumber]['status'];
+  Color _getRoomColor(String roomNumber, Map<dynamic, dynamic> roomsMapping) {
+    if (roomsMapping.containsKey(roomNumber)) {
+      final status = roomsMapping[roomNumber]['status'];
       if (status == 'safe') return Colors.green[600]!;
       if (status == 'needs_rescue') return Colors.red[900]!;
       return Colors.amber[700]!;
@@ -47,7 +48,7 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
     return Colors.grey[300]!;
   }
 
-  Widget _buildGrid() {
+  Widget _buildGrid(Map<dynamic, dynamic> roomsMapping) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -62,7 +63,7 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
         String roomNumber = '$_selectedFloor${(index + 1).toString().padLeft(2, "0")}';
         return Container(
           decoration: BoxDecoration(
-            color: _getRoomColor(roomNumber),
+            color: _getRoomColor(roomNumber, roomsMapping),
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: Colors.black26),
           ),
@@ -74,9 +75,9 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
     );
   }
 
-  List<int> _getActiveFloors() {
-    if (_rooms.isEmpty) return [3, 4, 5];
-    final floors = _rooms.values.map((r) => r['floor'] as int).toSet().toList();
+  List<int> _getActiveFloors(Map<dynamic, dynamic> roomsMapping) {
+    if (roomsMapping.isEmpty) return [3, 4, 5];
+    final floors = roomsMapping.values.map((r) => r['floor'] as int?).where((f) => f != null).cast<int>().toSet().toList();
     floors.sort();
     return floors.isNotEmpty ? floors : [3, 4, 5];
   }
@@ -92,41 +93,58 @@ class _FloorMapWidgetState extends State<FloorMapWidget> {
       );
     }
 
-    final floorList = _getActiveFloors();
-    if (!floorList.contains(_selectedFloor)) {
-      _selectedFloor = floorList.first;
-    }
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: FirebaseService().streamFirestoreRooms(widget.incidentId),
+      builder: (context, snapshot) {
+        Map<dynamic, dynamic> displayRooms = _fallbackRooms;
 
-    return Column(
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: floorList.map((f) => _buildTab(f)).toList(),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: _buildGrid(),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+           displayRooms = {};
+           for (var room in snapshot.data!) {
+             String roomId = room['roomNumber']?.toString() ?? room['id']?.toString() ?? '';
+             if (roomId.isNotEmpty) {
+               displayRooms[roomId] = room;
+             }
+           }
+        }
+
+        final floorList = _getActiveFloors(displayRooms);
+        if (!floorList.contains(_selectedFloor)) {
+          _selectedFloor = floorList.first;
+        }
+
+        return Column(
           children: [
-            _legendItem(Colors.green[600]!, 'Safe'),
-            _legendItem(Colors.amber[700]!, 'Unaccounted'),
-            _legendItem(Colors.red[900]!, 'Needs Rescue'),
-            _legendItem(Colors.grey[300]!, 'Empty/Unknown'),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: floorList.map((f) => _buildTab(f)).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: _buildGrid(displayRooms),
+            ),
+        const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _legendItem(Colors.green[600]!, 'Safe'),
+                _legendItem(Colors.amber[700]!, 'Unaccounted'),
+                _legendItem(Colors.red[900]!, 'Needs Rescue'),
+                _legendItem(Colors.grey[300]!, 'Empty/Unknown'),
+              ],
+            )
           ],
-        )
-      ],
+        );
+      }
     );
   }
 

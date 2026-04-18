@@ -7,6 +7,7 @@ import '../widgets/accountability_summary_widget.dart';
 import '../widgets/floor_map_widget.dart';
 import '../app_state.dart';
 import '../mock_data.dart';
+import 'role_select_screen.dart';
 
 class ResponderScreen extends StatefulWidget {
   const ResponderScreen({Key? key}) : super(key: key);
@@ -230,13 +231,16 @@ class _ResponderScreenState extends State<ResponderScreen> {
           flex: 1,
           child: _panelWrapper(
             'INCIDENT TIMELINE', 
-            incidentId.startsWith('mock_')
-              ? _buildMockTimeline(incidentId)
-              : StreamBuilder<QuerySnapshot>(
+            StreamBuilder<QuerySnapshot>(
                   stream: _firebaseService.streamTimelineEvents(incidentId),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                    final docs = snapshot.data!.docs;
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return _buildMockTimeline(incidentId);
+                    }
                     return ListView.builder(
                       shrinkWrap: true,
                       itemCount: docs.length,
@@ -405,7 +409,12 @@ class _ResponderScreenState extends State<ResponderScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Icon(Icons.circle, color: isConnected ? Colors.green : Colors.red, size: 16),
             ),
-            IconButton(icon: const Icon(Icons.logout), onPressed: () => _firebaseService.signOut())
+            IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+              await _firebaseService.signOut();
+              if (context.mounted) {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RoleSelectScreen()));
+              }
+            })
           ]
         ),
         body: StreamBuilder<List<Map<dynamic, dynamic>>>(
@@ -465,37 +474,50 @@ class _ResponderScreenState extends State<ResponderScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Icon(Icons.circle, color: isConnected ? Colors.green : Colors.red, size: 16),
             ),
-            IconButton(icon: const Icon(Icons.logout), onPressed: () => _firebaseService.signOut())
+            IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+              await _firebaseService.signOut();
+              if (context.mounted) {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RoleSelectScreen()));
+              }
+            })
           ]
         ),
-        body: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _dummyIncidents.length,
-          itemBuilder: (ctx, i) {
-            final mock = _dummyIncidents[i];
-            return Card(
-              elevation: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(24),
-                leading: Icon(
-                  mock['severityLevel'] == 'High' ? Icons.warning : (mock['severityLevel'] == 'Medium' ? Icons.error_outline : Icons.info),
-                  color: mock['severityLevel'] == 'High' ? Colors.red : (mock['severityLevel'] == 'Medium' ? Colors.amber : Colors.blue),
-                  size: 48,
-                ),
-                title: Text(mock['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text('Location: ${mock['location']}\nReported by: ${mock['reporterName']}\nSeverity: ${mock['severityLevel']}', style: const TextStyle(height: 1.5, fontSize: 16)),
-                ),
-                trailing: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
-                  icon: const Icon(Icons.visibility),
-                  label: const Text('Simulate Response', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  onPressed: () => setState(() => _selectedMockIncident = mock),
-                ),
-              ),
+        body: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _firebaseService.streamFirestoreIncidents(),
+          builder: (context, snapshot) {
+            final firestoreIncidents = snapshot.data?.where((inc) => inc['status'] != 'resolved').toList() ?? [];
+            final displayList = firestoreIncidents.isNotEmpty ? firestoreIncidents : _dummyIncidents;
+            
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: displayList.length,
+              itemBuilder: (ctx, i) {
+                final mock = displayList[i];
+                return Card(
+                  elevation: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(24),
+                    leading: Icon(
+                      mock['severityLevel'] == 'High' ? Icons.warning : (mock['severityLevel'] == 'Medium' ? Icons.error_outline : Icons.info),
+                      color: mock['severityLevel'] == 'High' ? Colors.red : (mock['severityLevel'] == 'Medium' ? Colors.amber : Colors.blue),
+                      size: 48,
+                    ),
+                    title: Text(mock['title'] ?? mock['type']?.toString().toUpperCase() ?? 'Incident', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text('Location: ${mock['location'] ?? "Unknown"}\nReported by: ${mock['reporterName'] ?? "System"}\nSeverity: ${mock['severityLevel'] ?? mock['severity']}', style: const TextStyle(height: 1.5, fontSize: 16)),
+                    ),
+                    trailing: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
+                      icon: const Icon(Icons.visibility),
+                      label: const Text('Simulate Response', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      onPressed: () => setState(() => _selectedMockIncident = mock),
+                    ),
+                  ),
+                );
+              }
             );
           }
         ),
@@ -518,7 +540,12 @@ class _ResponderScreenState extends State<ResponderScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Icon(Icons.circle, color: isConnected ? Colors.green : Colors.red, size: 16),
           ),
-          IconButton(icon: const Icon(Icons.logout), onPressed: () => _firebaseService.signOut())
+          IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+            await _firebaseService.signOut();
+            if (context.mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RoleSelectScreen()));
+            }
+          })
         ]
       ),
       body: SingleChildScrollView(

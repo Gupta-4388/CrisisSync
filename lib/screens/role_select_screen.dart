@@ -17,29 +17,29 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
 
   Future<void> _loginAsGuest(BuildContext context) async {
     setState(() => _isLoading = true);
-    bool isGuest = false;
     try {
       final user = await _firebaseService.signInAnonymously();
-      isGuest = true;
       if (user != null) {
         print('Anonymous login success');
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const GuestScreen()));
+        }
       } else {
         print('Anonymous login failed → fallback activated');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Continuing in guest mode'), duration: Duration(seconds: 2))
           );
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const GuestScreen()));
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const GuestScreen()));
         }
       }
     } catch (e) {
-      isGuest = true;
       print('Anonymous login failed → fallback activated');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Continuing in guest mode'), duration: Duration(seconds: 2))
         );
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const GuestScreen()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const GuestScreen()));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -78,9 +78,12 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
                setState(() => _isLoading = true);
                try {
                  await _firebaseService.signInWithEmailPassword(email, password, role.toLowerCase());
+                 if (mounted) {
+                   Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => role.toLowerCase() == 'staff' ? const StaffScreen() : const ResponderScreen()));
+                 }
                } catch (e) {
                  if (mounted) {
-                   Navigator.push(context, MaterialPageRoute(builder: (_) => role.toLowerCase() == 'staff' ? const StaffScreen() : const ResponderScreen()));
+                   Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => role.toLowerCase() == 'staff' ? const StaffScreen() : const ResponderScreen()));
                  }
                } finally {
                  if (mounted) setState(() => _isLoading = false);

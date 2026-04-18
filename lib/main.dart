@@ -45,51 +45,9 @@ class CrisisSyncApp extends StatelessWidget {
         if (settings.name == '/admin' || Uri.base.queryParameters['admin'] == 'true') {
           return MaterialPageRoute(builder: (_) => const AdminSensorScreen());
         }
-        return MaterialPageRoute(builder: (_) => const AuthWrapper());
+        return MaterialPageRoute(builder: (_) => RoleSelectScreen());
       },
-      home: const AuthWrapper(),
-    );
-  }
-}
-
-class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
-
-  @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  final FirebaseService _firebaseService = FirebaseService();
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: _firebaseService.authStateChanges,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
-        }
-
-        if (snapshot.hasData && snapshot.data != null) {
-          final user = snapshot.data!;
-          return FutureBuilder<String>(
-            future: _firebaseService.getUserRole(user.uid),
-            builder: (context, roleSnapshot) {
-              if (roleSnapshot.connectionState == ConnectionState.waiting) {
-                return const SplashScreen();
-              }
-              final role = roleSnapshot.data;
-              if (role == 'guest') return const GuestScreen();
-              if (role == 'staff') return const StaffScreen();
-              if (role == 'responder') return const ResponderScreen();
-              return RoleSelectScreen();
-            },
-          );
-        }
-
-        return RoleSelectScreen();
-      },
+      home: RoleSelectScreen(),
     );
   }
 }

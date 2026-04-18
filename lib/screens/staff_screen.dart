@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/firebase_service.dart';
 import '../app_state.dart';
+import 'role_select_screen.dart';
 import 'staff_accountability_screen.dart';
 
 class StaffScreen extends StatelessWidget {
@@ -33,7 +34,12 @@ class StaffScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Icon(Icons.circle, color: isConnected ? Colors.green : Colors.red, size: 16),
           ),
-          IconButton(icon: const Icon(Icons.logout), onPressed: () => firebaseService.signOut())
+          IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+            await firebaseService.signOut();
+            if (context.mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RoleSelectScreen()));
+            }
+          })
         ],
       ),
       body: Column(

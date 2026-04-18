@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../mock_data.dart';
 
+import '../services/firebase_service.dart';
+
 class AccountabilitySummaryWidget extends StatelessWidget {
   final String incidentId;
   const AccountabilitySummaryWidget({Key? key, required this.incidentId}) : super(key: key);
@@ -10,23 +12,43 @@ class AccountabilitySummaryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    Map<dynamic, dynamic> counts = appState.guestCounts;
-    if (incidentId.startsWith('mock_')) {
-      MockDataStore.generate(incidentId);
-      counts = MockDataStore.counts;
-    }
     
-    int safe = counts['safe'] ?? 0;
-    int unaccounted = counts['unaccounted'] ?? 0;
-    int needsRescue = counts['needs_rescue'] ?? 0;
-    
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildStatCard('Safe', safe, Colors.green),
-        _buildStatCard('Unaccounted', unaccounted, Colors.amber),
-        _buildStatCard('Needs Rescue', needsRescue, Colors.red),
-      ],
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: FirebaseService().streamFirestoreRooms(incidentId),
+      builder: (context, snapshot) {
+        int safe = 0;
+        int unaccounted = 0;
+        int needsRescue = 0;
+        
+        bool hasFirestoreData = snapshot.hasData && snapshot.data!.isNotEmpty;
+        
+        if (hasFirestoreData) {
+          for (var room in snapshot.data!) {
+            final status = room['status']?.toString();
+            if (status == 'safe') safe++;
+            else if (status == 'needs_rescue') needsRescue++;
+            else unaccounted++;
+          }
+        } else {
+          Map<dynamic, dynamic> counts = appState.guestCounts;
+          if (incidentId.startsWith('mock_')) {
+            MockDataStore.generate(incidentId);
+            counts = MockDataStore.counts;
+          }
+          safe = counts['safe'] ?? 0;
+          unaccounted = counts['unaccounted'] ?? 0;
+          needsRescue = counts['needs_rescue'] ?? 0;
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildStatCard('Safe', safe, Colors.green),
+            _buildStatCard('Unaccounted', unaccounted, Colors.amber),
+            _buildStatCard('Needs Rescue', needsRescue, Colors.red),
+          ],
+        );
+      }
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import '../services/firebase_service.dart';
 import '../services/gemini_service.dart';
 import '../app_state.dart';
+import 'role_select_screen.dart';
 
 class GuestScreen extends StatefulWidget {
   const GuestScreen({Key? key}) : super(key: key);
@@ -153,7 +154,12 @@ class _GuestScreenState extends State<GuestScreen> with SingleTickerProviderStat
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Icon(Icons.circle, color: isConnected ? Colors.green : Colors.red, size: 16),
           ),
-          IconButton(icon: const Icon(Icons.logout), onPressed: () => firebaseService.signOut())
+          IconButton(icon: const Icon(Icons.logout), onPressed: () async {
+            await firebaseService.signOut();
+            if (context.mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RoleSelectScreen()));
+            }
+          })
         ],
       ),
       body: Stack(

@@ -225,4 +225,52 @@ class FirebaseService {
         .orderBy('timestamp')
         .snapshots();
   }
+
+  // --- New Firestore Collections Integration ---
+
+  /// 1. Initialize Firestore safely / get instance
+  FirebaseFirestore get firestore => _firestore;
+
+  /// Stream active incidents from Firestore, or all incidents if no status filter applied
+  Stream<List<Map<String, dynamic>>> streamFirestoreIncidents() {
+    return _firestore.collection('incidents').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    });
+  }
+
+  /// Stream room statuses from Firestore for a specific incident
+  Stream<List<Map<String, dynamic>>> streamFirestoreRooms(String incidentId) {
+    return _firestore
+        .collection('rooms')
+        .where('incidentId', isEqualTo: incidentId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    });
+  }
+
+  /// Get Buildings
+  Future<List<Map<String, dynamic>>> getBuildings() async {
+    try {
+      final snapshot = await _firestore.collection('buildings').get();
+      return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    } catch (e) {
+      print('Error fetching buildings: $e');
+      return [];
+    }
+  }
+
+  /// Get Floors
+  Future<List<Map<String, dynamic>>> getFloors(String buildingId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('floors')
+          .where('buildingId', isEqualTo: buildingId)
+          .get();
+      return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    } catch (e) {
+      print('Error fetching floors: $e');
+      return [];
+    }
+  }
 }
