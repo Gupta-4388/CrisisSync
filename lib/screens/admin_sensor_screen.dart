@@ -15,7 +15,7 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
   final FirebaseService _firebaseService = FirebaseService();
 
   double _temperature = 22.0;
-  double _smokeLevel = 5.0;
+  double _smokeDensity = 5.0;
   double _motionEvents = 1.0;
 
   bool _isAnalyzing = false;
@@ -26,19 +26,30 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
   Future<void> _analyzeData() async {
     setState(() => _isAnalyzing = true);
     
-    final data = {
-      'temperature': _temperature,
-      'smokeLevel': _smokeLevel,
-      'motionEvents': _motionEvents,
-    };
+    final double temperature = _temperature;
+    final double smokeDensity = _smokeDensity;
+    final double motionEvents = _motionEvents;
+
+    print("Temp: $temperature, Smoke: $smokeDensity, Motion: $motionEvents");
+    print("Calling Gemini API now...");
     
-    final result = await _geminiService.analyzeIncident(data);
-    
-    if (mounted) {
-      setState(() {
-        _isAnalyzing = false;
-        _analysisResult = result;
-      });
+    try {
+      final result = await _geminiService.analyze(temperature, smokeDensity, motionEvents);
+      
+      if (mounted) {
+        print("Updating UI with new result");
+        setState(() {
+          _isAnalyzing = false;
+          _analysisResult = result;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -85,7 +96,7 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
     setState(() {
       _demoStep = 'Step 2: Simulating high fire risk (Temp 82°C, Smoke 68%)...';
       _temperature = 82.0;
-      _smokeLevel = 68.0;
+      _smokeDensity = 68.0;
       _motionEvents = 9.0;
     });
     print(_demoStep);
@@ -133,7 +144,7 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
     await FirebaseDatabase.instance.ref('incidents').remove();
     setState(() {
       _temperature = 22.0;
-      _smokeLevel = 5.0;
+      _smokeDensity = 5.0;
       _motionEvents = 1.0;
       _analysisResult = null;
     });
@@ -193,13 +204,13 @@ class _AdminSensorScreenState extends State<AdminSensorScreen> {
 
                   const Text('Smoke Density (%)', style: TextStyle(fontWeight: FontWeight.bold)),
                   Slider(
-                    value: _smokeLevel,
+                    value: _smokeDensity,
                     min: 0,
                     max: 100,
-                    activeColor: _smokeLevel > 30 ? Colors.red : Colors.grey,
-                    onChanged: (val) => setState(() => _smokeLevel = val),
+                    activeColor: _smokeDensity > 30 ? Colors.red : Colors.grey,
+                    onChanged: (val) => setState(() => _smokeDensity = val),
                   ),
-                  Text(_smokeLevel.toStringAsFixed(1)),
+                  Text(_smokeDensity.toStringAsFixed(1)),
                   const SizedBox(height: 24),
 
                   const Text('Motion Events (per min)', style: TextStyle(fontWeight: FontWeight.bold)),

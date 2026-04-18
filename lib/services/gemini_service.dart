@@ -253,24 +253,41 @@ Provide a clear, professional, concise script (under 50 words) to read to the em
     }
   }
 
-  Future<Map<String, dynamic>> analyzeIncident(Map<String, dynamic> sensorData) async {
-    if (GEMINI_API_KEY.isEmpty) {
-      return {
+  Future<Map<String, dynamic>> analyze(double temperature, double smokeDensity, double motionEvents) async {
+    String sensorText = "Temperature: $temperature, Smoke: $smokeDensity, Motion: $motionEvents";
+
+    print("Received values → Temp: $temperature, Smoke: $smokeDensity, Motion: $motionEvents");
+
+    // Temporary fallback logic
+    Map<String, dynamic> fallbackResponse;
+    if (temperature > 70 && smokeDensity > 60) {
+      fallbackResponse = {
+        "incident_detected": true,
+        "incident_type": "fire",
+        "severity": 5,
+        "affected_floors": [1, 2, 3],
+        "confidence": 0.95,
+        "immediate_action": "Evacuate building immediately. (Fallback)",
+      };
+    } else if (motionEvents > 40) {
+      fallbackResponse = {
+        "incident_detected": true,
+        "incident_type": "intrusion",
+        "severity": 3,
+        "affected_floors": [1],
+        "confidence": 0.85,
+        "immediate_action": "Alert security immediately. (Fallback)",
+      };
+    } else {
+      fallbackResponse = {
         "incident_detected": false,
         "incident_type": "none",
         "severity": 1,
         "affected_floors": [],
         "confidence": 0.0,
-        "immediate_action": "No immediate action required"
+        "immediate_action": "No immediate action required. (Fallback)",
       };
     }
-
-    String sensorText = '''
-SENSOR READINGS:
-- Temperature: ${sensorData['temperature'] ?? 'N/A'}°C
-- Smoke Level: ${sensorData['smokeLevel'] ?? 'N/A'}%
-- Motion Alerts: ${sensorData['motionAlerts'] ?? sensorData['motionCount'] ?? 0}
-''';
 
     try {
       final model = GenerativeModel(
@@ -283,19 +300,21 @@ SENSOR READINGS:
       final response = await model.generateContent(content);
       
       String responseText = response.text ?? '{}';
+      print("----- AFTER API CALL -----");
+      print('Response received from Gemini:\n$responseText');
+      
       responseText = responseText.replaceAll(RegExp(r'```(?:json)?'), '').trim();
       
-      return jsonDecode(responseText) as Map<String, dynamic>;
+      final parsed = jsonDecode(responseText) as Map<String, dynamic>;
+      if (parsed.isEmpty) {
+        print("Gemini response empty, using fallback");
+        return fallbackResponse;
+      }
+      return parsed;
     } catch (e) {
       print("Gemini API Error (Analyze): $e");
-      return {
-        "incident_detected": false,
-        "incident_type": "none",
-        "severity": 1,
-        "affected_floors": [],
-        "confidence": 0.0,
-        "immediate_action": "No immediate action required"
-      };
+      print("Using fallback logic -> Temp: $temperature, Smoke: $smokeDensity, Motion: $motionEvents");
+      return fallbackResponse;
     }
   }
 }
