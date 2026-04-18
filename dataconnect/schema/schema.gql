@@ -1,0 +1,75 @@
+type Venue @table {
+  name: String!
+  address: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String!
+  createdAt: Timestamp!
+  contactEmail: String
+  contactPhone: String
+  capacity: Int
+}
+
+type User @table {
+  firebaseAuthUid: String!
+  displayName: String!
+  email: String!
+  role: String! # This represents the conceptual role (e.g., "Security", "Guest"), not the Role table.
+  createdAt: Timestamp!
+  phoneNumber: String
+  preferredLanguage: String
+  venue: Venue # If staff/guest of a specific venue
+}
+
+type Role @table {
+  name: String!
+  description: String!
+  createdAt: Timestamp!
+  venue: Venue!
+  defaultAlertTemplates: String # Consider a more structured type if templates are complex
+}
+
+type Incident @table {
+  type: String!
+  status: String!
+  locationDescription: String!
+  detectedAt: Timestamp!
+  createdAt: Timestamp!
+  venue: Venue!
+  severity: String
+  triggeredBy: String # AI or User
+  resolutionNotes: String
+}
+
+type Alert @table {
+  message: String!
+  type: String!
+  sentAt: Timestamp!
+  status: String!
+  incident: Incident!
+  recipientUser: User
+  recipientRole: Role! # This links to the Role definition for context
+  specificInstructions: String
+  floorMapSectionUrl: String
+}
+
+type FloorPlan @table {
+  name: String!
+  imageUrl: String!
+  createdAt: Timestamp!
+  venue: Venue!
+  description: String
+  level: Int
+}
+
+type GuestGuidance @table {
+  message: String!
+  language: String!
+  type: String!
+  createdAt: Timestamp!
+  incident: Incident!
+  recipientUser: User
+  recipientMethod: String
+  imageUrl: String
+}
